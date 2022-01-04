@@ -164,6 +164,7 @@ pwa <- function(pw, plot = FALSE) {
     p1i <- which.max(pw)
   }
   
+  # calculate aix to determine murgo type
   ap <- (pw[p2i] - pw[p1i])
   pp <- (pw[maxpi] - pw[foot])
   aix <- (ap / pp) * 100
@@ -186,12 +187,7 @@ pwa <- function(pw, plot = FALSE) {
     pIi <- which.max(d2[p1i:maxpi]) + (p1i - 1)
     #plot(pw);abline(v=pIi)
   }
-  
-  # if p1 & pi are on top of each other, then flag
-  if(!is.na(pIi)){
-    if(pIi - p1i <= 2) {type <- "B"}
-  }
-  
+    
   # plot(pw,type="o"); abline(v=c(p1i,pIi), col=2:3)
   
   # Find dp/dt max
