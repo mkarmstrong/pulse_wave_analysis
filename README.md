@@ -14,7 +14,11 @@ results <- pwa(mydata$pressure, plot = TRUE)
 
 Resulting plots:
 
-![Murgo type A](Type_A_waveform.png)
 
+Murgo type A waveform:
 
-![Murgo type C](Type_C_waveform.png)
+![Murgo type A](Type_A_waveform_1.png)
+
+Murgo type C waveform:
+
+![Murgo type C](Type_C_waveform_1.png)
