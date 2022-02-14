@@ -17,8 +17,8 @@ Resulting plots:
 
 Murgo type A waveform:
 
-![Murgo type A](Type_A_waveform_1.png)
+![Murgo type A](Type_A.png)
 
 Murgo type C waveform:
 
-![Murgo type C](Type_C_waveform_1.png)
+![Murgo type C](Type_C.png)
