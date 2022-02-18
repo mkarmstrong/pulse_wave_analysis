@@ -9,7 +9,8 @@ devtools::source_url("https://raw.githubusercontent.com/mkarmstrong/PulseWaveAna
 
 Run the function:
 ```R
-results <- pwa(mydata$pressure, plot = TRUE)
+results <- pwa(mydata$pressure, 
+               plot = TRUE)
 ```
 
 Resulting plots:
