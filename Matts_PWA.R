@@ -1,4 +1,4 @@
-pwa <- function(pw, filt = F, plot = FALSE) {
+pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
   # Load functions
   fsg721 <- function(x) {
@@ -58,38 +58,41 @@ pwa <- function(pw, filt = F, plot = FALSE) {
     nni <- which.min(dp1)
     end <- length(pw)
     end2 <- length(pw) - round(length(nni:end)/1.7)
-    Max_dp2_dbp <- which.max(dp2[nni:end2]) + nni - 2
-    Min_dp3_dbp <- which.min(dp3[nni:end2]) + nni
-    #resid <- lm(pw[Max_dp2_dbp:Min_dp3_dbp] ~ time(pw[Max_dp2_dbp:Min_dp3_dbp]))$residuals
+    Max_dp2_dbp <- which.max(dp2[nni:end2]) + nni - 1
+    Min_dp3_dbp <- which.min(dp3[nni:end2]) + nni - 1
+
+    z1 <- Max_dp2_dbp - 3
+    z2 <- Min_dp3_dbp + 3
     
     # De-trend notch area
-    narea <- pw[Max_dp2_dbp:Min_dp3_dbp]
+    narea <- pw[z1:z2]
     resid <- NA
+    
     for(i in 1:length(narea)) {
       resid[i] <- narea[i] - narea[1]
     }
     
-    #plot(resid)
+    # plot(resid)
     
     # Find notch
-    dic <- unname(which.min(resid)) + Max_dp2_dbp - 1
+    dic <- which.min(resid) - 1 + z1
     
-    if(dic >= Min_dp3_dbp-1) {
-      #dic <- (length(narea)/2) + Max_dp2_dbp
-      dic <- Max_dp2_dbp + 3
+    if(dic >= z2-1) {
+      dic <- Max_dp2_dbp
     }
     
     # # Testing plots
-    # plot(pw);abline(v=c(Max_dp2_dbp, dic, Min_dp3_dbp, end2),
+    # plot(pw);abline(v=c(z1, dic, z2, end2),
     #                 lty=c(3,1,3,3),
     #                 col=c("grey","red","grey","grey"),
     #                 lwd=2)
     
-    
+
     # FIND DICROTIC PEAK ------------------------------------------------------
     
     above <- dp1[(dic+2):end2] > 0
     dia <- NA
+    
     if(TRUE %in% above) {
       dia <- which(diff(above) < 0) + (dic+2)
       dia <- dia[which.max(pw[dia])]
@@ -112,7 +115,8 @@ pwa <- function(pw, filt = F, plot = FALSE) {
       mtext(c("Ed", "P3"), side = 3, at = c(dic,dia))
     }
     
-    return(data.frame(dicrotic_notch = dic, dicrotic_peak = dia))
+    return(data.frame(dicrotic_notch = dic, 
+                      dicrotic_peak = dia))
     
   }
   
@@ -285,7 +289,7 @@ pwa <- function(pw, filt = F, plot = FALSE) {
          lwd = 3,
          ylab = "Pressure (mmHg)",
          xlab = "Time (s)")
-    grid (NULL,NULL, lty = 3, col = "lightgrey") 
+    grid(NULL,NULL, lty = 3, col = "lightgrey") 
     legend("topright", type, bty = 'n')
     
     # mtext(
@@ -330,35 +334,34 @@ pwa <- function(pw, filt = F, plot = FALSE) {
   
   df <- data.frame(
     # Index of values
-    MaxP.index = maxpi,
-    Foot.index = foot,
-    P1.index = p1i,
-    P2.index = p2i,
-    Ed.index = notch,
-    P3.index = notchpeak,
-    P1x.index = p1i1,
-    DpDt.index = dpdt.max,
+    MaxP_index = maxpi,
+    Foot_index = foot,
+    P1_index = p1i,
+    P2_index = p2i,
+    Ed_index = notch,
+    P3_index = notchpeak,
+    P1x_index = p1i1,
+    DpDt_index = dpdt.max,
     # Values in unit seconds
-    MaxP.sec = time[maxpi],
-    Foot.sec = time[foot],
-    P1.sec = time[p1i],
-    P2.sec = time[p2i],
-    Ed.sec = time[notch],
-    P3.sec = time[notchpeak],
-    P1x.sec = time[p1i1],
-    DpDt.sec = time[dpdt.max],
+    MaxP_sec = time[maxpi],
+    Foot_sec = time[foot],
+    P1_sec = time[p1i],
+    P2_sec = time[p2i],
+    Ed_sec = time[notch],
+    P3_sec = time[notchpeak],
+    P1x_sec = time[p1i1],
+    DpDt_sec = time[dpdt.max],
     # Values in unit mmHg
-    MaxP.mmhg = pw[maxpi],
-    Foot.mmhg = pw[foot],
-    P1.mmhg = pw[p1i],
-    P2.mmhg = pw[p2i],
-    Ed.mmhg = pw[notch],
-    P3.mmhg = pw[notchpeak],
-    P1x.mmhg = pw[p1i1],
-    DpDt.mmhg = pw[dpdt.max],
-    AP.mmHg = ap,
+    MaxP_mmhg = pw[maxpi],
+    Foot_mmhg = pw[foot],
+    P1_mmhg = pw[p1i],
+    P2_mmhg = pw[p2i],
+    Ed_mmhg = pw[notch],
+    P3_mmhg = pw[notchpeak],
+    P1x_mmhg = pw[p1i1],
+    DpDt_mmhg = pw[dpdt.max],
+    AP_mmHg = ap,
     AIX = aix,
-    # Err check
     Type = type
   )
   
