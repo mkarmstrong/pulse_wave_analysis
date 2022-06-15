@@ -57,54 +57,34 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     # Isolate notch area with 2nd and 3rd derivatives
     nni <- which.min(dp1)
     end <- length(pw)
-    end2 <- length(pw) - round(length(nni:end)/1.7)
-    Max_dp2_dbp <- which.max(dp2[nni:end2]) + nni - 1
-    Min_dp3_dbp <- which.min(dp3[nni:end2]) + nni - 1
+    
+    # End index without potential perturbation at end diastole  
+    end2 <- end * .9
+    
+    # Dicrotic notch from local dp2 max
+    dic <- which.max(dp2[nni:end2]) + nni - 1
 
-    z1 <- Max_dp2_dbp - 3
-    z2 <- Min_dp3_dbp + 3
+    # plot(pw, type="l", lwd=2)
+    # par(new=T)
+    # plot(dp2, type='o',col="grey")
+    # abline(v = dic, h = 0)
     
-    # De-trend notch area
-    narea <- pw[z1:z2]
-    resid <- NA
     
-    for(i in 1:length(narea)) {
-      resid[i] <- narea[i] - narea[1]
-    }
-    
-    # plot(resid)
-    
-    # Find notch
-    dic <- which.min(resid) - 1 + z1
-    
-    if(dic >= z2-1) {
-      dic <- Max_dp2_dbp
-    }
-    
-    # # Testing plots
-    # plot(pw);abline(v=c(z1, dic, z2, end2),
-    #                 lty=c(3,1,3,3),
-    #                 col=c("grey","red","grey","grey"),
-    #                 lwd=2)
-    
-
     # FIND DICROTIC PEAK ------------------------------------------------------
     
-    above <- dp1[(dic+2):end2] > 0
-    dia <- NA
+    end3 <- ((end - dic) * .6) + dic # 60% of diastolic duration
+    abline(v=end3, lty=2, col=2)
     
-    if(TRUE %in% above) {
-      dia <- which(diff(above) < 0) + (dic+2)
-      dia <- dia[which.max(pw[dia])]
+    if(sum(dp2[dic:end3] < 0) < 1) {
+      dia <- 9999
     } else {
-      dia <- which.min(dp2[dic:end2]) + dic
+      dia <- which.min(dp2[dic:end3]) + dic - 1
     }
     
-    # plot(pw); abline(v=dia)
-    # plot(pw[dic:end2])
+    # plot(pw, type="l", lwd=2)
     # par(new=T)
-    # plot(dp1[dic:end2]); abline(h=0)
-    # abline(v=dia-(dic))
+    # plot(dp2, type='o',col="grey")
+    # abline(v = c(dic, dia), h = 0)
     
     
     # PLOTS -------------------------------------------------------------------
