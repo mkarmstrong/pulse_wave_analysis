@@ -73,7 +73,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     # FIND DICROTIC PEAK ------------------------------------------------------
     
     end3 <- ((end - dic) * .6) + dic # 60% of diastolic duration
-    abline(v=end3, lty=2, col=2)
+    #abline(v=end3, lty=2, col=2)
     
     if(sum(dp2[dic:end3] < 0) < 1) {
       dia <- 9999
@@ -100,7 +100,27 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     
   }
   
+  RootSpline1 <- function (x, y, y0 = 0, verbose = TRUE) {
+    if (is.unsorted(x)) {
+      ind <- order(x)
+      x <- x[ind]; y <- y[ind]
+    }
+    z <- y - y0
+    ## which piecewise linear segment crosses zero?
+    k <- which(z[-1] * z[-length(z)] <= 0)
+    ## analytical root finding
+    xr <- x[k] - z[k] * (x[k + 1] - x[k]) / (z[k + 1] - z[k])
+    ## make a plot?
+    if (verbose) {
+      plot(x, y, "l"); abline(h = y0, lty = 2)
+      points(xr, rep.int(y0, length(xr)))
+    }
+    ## return roots
+    xr
+  }
+  
   low.pass <- function(y, fq, do.plot = FALSE) {
+    
     # Second order low pass filter
     # Removes high frequency components below fq
     # y = a numeric vector, typically a tree-ring series.
@@ -121,7 +141,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
       f <- fq
     }
     
-    ## sort f in case it's passed in backwards
+    # sort f in case it's passed in backwards
     f <- sort(f)
     
     filt <- signal::butter(
@@ -131,30 +151,35 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
       plane = "z"
     )
     
-    ## remove mean
+    # remove mean
     yAvg <- mean(y)
     y <- y - yAvg
     
-    ## pad the data to twice the max period
+    # pad the data to twice the max period
     pad <- max(p) * 2
     ny <- length(y)
-    ## pad the data
+    
+    # pad the data
     yPad <- c(y[pad:1], y, y[ny:(ny - pad)])
-    ## run the filter
+    
+    # run the filter
     yFilt <- signal::filtfilt(filt, yPad)
-    ## unpad the filtered data
+    
+    # unpad the filtered data
     yFilt <- yFilt[(pad + 1):(ny + pad)]
-    ## return with mean added back in
+    
+    # return with mean added back in
     filt.sig <- yFilt + yAvg
     
     if(isTRUE(do.plot)){
-      ## plot results
+      
+      # plot results
       plot(filt.sig,
            type = "l",
            lwd = 2)
     }
     
-    ## return filtered signal
+    # return filtered signal
     return(filt.sig)
     
   }
@@ -170,9 +195,6 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   d3 <- fsg721(fsg721(fsg721(pw)))
   d4 <- fsg721(fsg721(fsg721(fsg721(pw))))
   
-  # Create time
-  time <- (0:(length(pw)-1)) / 200
-  
   # Some additional calcs
   end <- length(pw)
   foot <- Tintersect(pw) - 1
@@ -182,35 +204,27 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   notch <- notchdat$dicrotic_notch
   notchpeak <- notchdat$dicrotic_peak
   
-  # plot(pw,type="o"): abline(v=foot)
+  # plot(pw,type="o")
+  # abline(v=c(foot, notch, notchpeak))
   
-  # Find p1 from 4th derivative
-  above <- d4[foot:end] > 0
-  above[1:10] <- FALSE
-  n1 <- which(diff(above) < 0)
-  n2 <- n1[1]
-  p1i <- n2+(foot-1)
+  # Create time
+  time <- (0:(length(pw)-1)) / 200
+  X <- 1:length(pw)
   
-  # plot(pw,type="l")
+  # get zero crossing of 4th derivative
+  zero_cross <- RootSpline1(X[round(foot):end], d4[round(foot):end], 
+                            verbose = F)
+  
+  # index of p1
+  p1i <- zero_cross[2]
+  
+  # plot
+  # plot(pw, type='o')
   # par(new=T)
-  # plot(d4,type="l",col=3);abline(h=0,v=p1i,col=2)
-  # par(new=T)
-  # plot(d1,type='l')
+  # plot(d4,type="o",col=3,xaxt='n',yaxt='n');abline(h=0,v=p1i,col=2)
   
   # Find p2 from 3rd derivative
   p2i <- which.min(d3[maxpi:(notch - 5)]) + maxpi
-  
-  # # Find p2 from 4th derivative (P3d is better method)
-  # below <- d4[maxpi:notch] < 0
-  # blw1 <- which(diff(below) < 0) + 1
-  # blw2 <- blw1[1]
-  # p2i <- blw2 + (maxpi)
-  # 
-  # plot(pw[maxpi:(notch)],type="l"); abline(v = c(p2i - maxpi, p2i.3rd - maxpi))
-  # par(new = T)
-  # plot(d3[maxpi:(notch)],type="o", col=2)
-  # par(new = T)
-  # plot(d4[maxpi:(notch)],type="o", col=4); abline(h=0,col=4)
   
   # Depending type of pressure waveform p1 or p2 will equal max p
   # Find which is closest to max P
@@ -285,13 +299,13 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     
     points(x = c(time[foot], 
                  time[p1i], 
-                 #time[p1i1], 
+                 time[p1i2], 
                  time[p2i], 
                  time[notch], 
                  time[notchpeak]),
            y = c(pw[foot], 
                  pw[p1i], 
-                 #pw[p1i1], 
+                 pw[p1i2], 
                  pw[p2i], 
                  pw[notch], 
                  pw[notchpeak]),
@@ -301,12 +315,12 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
            cex = 1.7)
     
     
-    points(x = time[p1i1],
-           y = pw[p1i1],
-           pch = "|",
-           col = 4,
-           lwd = 3,
-           cex = 1.7)
+    # points(x = time[p1i1],
+    #        y = pw[p1i1],
+    #        pch = "|",
+    #        col = 4,
+    #        lwd = 3,
+    #        cex = 1.7)
     
     
   }
@@ -345,6 +359,13 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     Type = type
   )
   
+  # round values in df
+  df[,1:26] <- round(df[,1:26], 3) # round values in df
+  
+  # print values to console
+  for(i in 1:length(df)){
+    print(paste0(names(df[i]),": ", df[1,i]), quote = F)
+  }
   
   return(df)
   
