@@ -219,14 +219,15 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   p1i <- zero_cross[2]
   
   # plot
-  # plot(pw, type='o')
+  # plot(pw[foot:end], type='l', lwd=2, col='grey',yaxt='n',ylab="")
   # par(new=T)
-  # plot(d4,type="o",col=3,xaxt='n',yaxt='n');abline(h=0,v=p1i,col=2)
+  # plot(d4,type="l",xaxt='n',lwd=2,ylab="4th derivative")
+  # abline(h=0,v=p1i,col=2,lwd=1.5)
   
   # Find p2 from 3rd derivative
   p2i <- which.min(d3[maxpi:(notch - 5)]) + maxpi
   
-  # Depending type of pressure waveform p1 or p2 will equal max p
+  # Depending type of pressure waveform p1 or p2 will aprox equal max p
   # Find which is closest to max P
   distp1 <- abs(maxpi - p1i)
   distp2 <- abs(maxpi - p2i)
@@ -259,17 +260,19 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   # Find dp/dt max
   dpdt.max <- which.max(d1)
   
-  # Find inflection after p1 (local max of 2nd derivative)
+  # Find inflection after p1 (local max of 2nd derivative per SphygmoCor)
   p1i2 <- 9999
   if(p1i < maxpi-3) {
     p1i2 <- which.max(d2[p1i:maxpi]) + (p1i - 1)
   }
   
-  # Find p1 from 1st D (local min of 1st derivative. Kelly et al. 10.1161/01.CIR.80.6.1652)
-  p1i1 <- 9999
-  if(p1i < maxpi-3) {
-    p1i1 <- which.min(d1[dpdt.max:p1i2]) + (dpdt.max - 1)
-  }
+  # Find p1 from 1st derivative (local min as per Kelly et al. 10.1161/01.CIR.80.6.1652)
+  # This method was simplified to the 4th derivative method but works fine here
+  
+  # p1i1 <- 9999
+  # if(p1i < maxpi-3) {
+  #   p1i1 <- which.min(d1[dpdt.max:p1i2]) + (dpdt.max - 1)
+  # }
   
   # plot(pw,type="o"); abline(v=c(p1i, p1i1, p1i2), col=2)
   # par(new=T)
@@ -285,17 +288,6 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
          xlab = "Time (s)")
     grid(NULL,NULL, lty = 3, col = "lightgrey") 
     legend("topright", type, bty = 'n')
-    
-    # mtext(
-    #   c("Ft", "P1", "P2", "Ed", "P3"),
-    #   side = 3,
-    #   cex = .7,
-    #   at = c(time[foot],
-    #          time[p1i],
-    #          time[p2i],
-    #          time[notch],
-    #          time[notchpeak])
-    # )
     
     points(x = c(time[foot], 
                  time[p1i], 
@@ -314,15 +306,6 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
            lwd = 3,
            cex = 1.7)
     
-    
-    # points(x = time[p1i1],
-    #        y = pw[p1i1],
-    #        pch = "|",
-    #        col = 4,
-    #        lwd = 3,
-    #        cex = 1.7)
-    
-    
   }
   
   
@@ -334,7 +317,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     P2_index = p2i,
     Ed_index = notch,
     P3_index = notchpeak,
-    P1x_index = p1i1,
+    #P1x_index = p1i1,
     DpDt_index = dpdt.max,
     # Values in unit seconds
     MaxP_sec = time[maxpi],
@@ -343,7 +326,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     P2_sec = time[p2i],
     Ed_sec = time[notch],
     P3_sec = time[notchpeak],
-    P1x_sec = time[p1i1],
+    #P1x_sec = time[p1i1],
     DpDt_sec = time[dpdt.max],
     # Values in unit mmHg
     MaxP_mmhg = pw[maxpi],
@@ -352,7 +335,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     P2_mmhg = pw[p2i],
     Ed_mmhg = pw[notch],
     P3_mmhg = pw[notchpeak],
-    P1x_mmhg = pw[p1i1],
+    #P1x_mmhg = pw[p1i1],
     DpDt_mmhg = pw[dpdt.max],
     AP_mmHg = ap,
     AIX = aix,
