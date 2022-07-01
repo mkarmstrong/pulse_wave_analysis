@@ -1,103 +1,162 @@
 pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
-  # Load functions
   fsg721 <- function(x) {
-    # 1st derivative with SG filter
-    #2nd order polynomial
-    C = c(0.107143, 0.071429, 0.035714)
-    B = integer(7)
-    for (i in 1:3) {
-      B[i] = C[i]
-    }
-    B[4] = 0.0
-    for (i in 5:7) {
-      B[i] = -C[8 - i]
-    }
-    A = c(1, 0)
-    s = length(x)
-    dx = signal::filter(B, A, x)
-    dx = c(dx[7], dx[7], dx[7], dx[7:s], dx[s], dx[s], dx[s])
+  # 1st derivative with SG filter
+  #2nd order polynomial
+  C = c(0.107143, 0.071429, 0.035714)
+  B = integer(7)
+  for (i in 1:3) {
+    B[i] = C[i]
   }
-  
-  Tintersect <- function(wf, plot = FALSE) {
-    
-    k1 <- wf - min(wf[1:which.max(wf)])
-    xvar <- (1:length(k1) - 1)
-    spl <- smooth.spline(k1 ~ xvar)
-    newx <- which.max(diff(k1))
-    pred0 <- predict(spl, x = newx, deriv = 0)
-    pred1 <- predict(spl, x = newx, deriv = 1)
-    yint <- pred0$y - (pred1$y * newx)
-    xint <- (-yint / pred1$y)
-    
-    if(isTRUE(plot)) {
-      plot(xvar, k1, ylim=c(min(k1)-20, max(k1)))
-      abline(h=min(k1), col="red", lty=3)
-      lines(spl, col="red") 
-      lines(xvar, yint + pred1$y*xvar, col="green", lwd=2)
-      points(pred0,col="red", pch=8, lwd=2) 
-      points(xint, 0, col="red", pch=8, lwd=2) 
-      abline(v=xint, lty=3)
-    }
-    
-    return(xint)
-    
+  B[4] = 0.0
+  for (i in 5:7) {
+    B[i] = -C[8 - i]
   }
-  
-  dicrotic <- function(pw, plot = FALSE) {
-    
-    # Get derivatives
-    dp1 <- fsg721(pw)
-    dp2 <- fsg721(fsg721(pw))
-    dp3 <- fsg721(fsg721(fsg721(pw)))
-    
-    
-    # FIND DICROTIC DEPRESSION ------------------------------------------------
-    
-    # Isolate notch area with 2nd and 3rd derivatives
-    nni <- which.min(dp1)
-    end <- length(pw)
-    
-    # End index without potential perturbation at end diastole  
-    end2 <- end * .9
-    
-    # Dicrotic notch from local dp2 max
-    dic <- which.max(dp2[nni:end2]) + nni - 1
+  A = c(1, 0)
+  s = length(x)
+  dx = signal::filter(B, A, x)
+  dx = c(dx[7], dx[7], dx[7], dx[7:s], dx[s], dx[s], dx[s])
+}
 
-    # plot(pw, type="l", lwd=2)
-    # par(new=T)
-    # plot(dp2, type='o',col="grey")
-    # abline(v = dic, h = 0)
-    
-    
-    # FIND DICROTIC PEAK ------------------------------------------------------
-    
-    end3 <- ((end - dic) * .6) + dic # 60% of diastolic duration
-    #abline(v=end3, lty=2, col=2)
-    
-    if(sum(dp2[dic:end3] < 0) < 1) {
-      dia <- 9999
-    } else {
-      dia <- which.min(dp2[dic:end3]) + dic - 1
-    }
-    
-    # plot(pw, type="l", lwd=2)
-    # par(new=T)
-    # plot(dp2, type='o',col="grey")
-    # abline(v = c(dic, dia), h = 0)
-    
-    
-    # PLOTS -------------------------------------------------------------------
-    
-    if(isTRUE(plot)) {
-      plot(pw, type = "l", lwd=2, ylab="BP (mmHg)")
-      abline(v=c(dic, dia), col="grey", lty=3, lwd=2)
-      mtext(c("Ed", "P3"), side = 3, at = c(dic,dia))
-    }
-    
-    return(data.frame(dicrotic_notch = dic, 
-                      dicrotic_peak = dia))
-    
+  Tintersect <- function(wf, plot = FALSE) {
+  
+  k1 <- wf - min(wf[1:which.max(wf)])
+  xvar <- (1:length(k1) - 1)
+  spl <- smooth.spline(k1 ~ xvar)
+  newx <- which.max(diff(k1))
+  pred0 <- predict(spl, x = newx, deriv = 0)
+  pred1 <- predict(spl, x = newx, deriv = 1)
+  yint <- pred0$y - (pred1$y * newx)
+  xint <- (-yint / pred1$y)
+  
+  if(isTRUE(plot)) {
+    plot(xvar, k1, ylim=c(min(k1)-20, max(k1)))
+    abline(h=min(k1), col="red", lty=3)
+    lines(spl, col="red") 
+    lines(xvar, yint + pred1$y*xvar, col="green", lwd=2)
+    points(pred0,col="red", pch=8, lwd=2) 
+    points(xint, 0, col="red", pch=8, lwd=2) 
+    abline(v=xint, lty=3)
+  }
+  
+  return(xint)
+  
+}
+
+  dicrotic <- function(pw, plot = FALSE) {
+  
+  # Get derivatives
+  dp1 <- fsg721(pw)
+  dp2 <- fsg721(fsg721(pw))
+  dp3 <- fsg721(fsg721(fsg721(pw)))
+  
+  
+  # FIND DICROTIC DEPRESSION ------------------------------------------------
+  
+  # Isolate notch area with 2nd and 3rd derivatives
+  nni <- which.min(dp1)
+  end <- length(pw)
+  
+  # End index without potential perturbation at end diastole  
+  end2 <- end * .9
+  
+  # Dicrotic notch from local dp2 max
+  dic <- which.max(dp2[nni:end2]) + nni - 1
+  
+  # plot(pw, type="l", lwd=2)
+  # par(new=T)
+  # plot(dp2, type='o',col="grey")
+  # abline(v = dic, h = 0)
+  
+  
+  # FIND DICROTIC PEAK ------------------------------------------------------
+  
+  end3 <- ((end - dic) * .6) + dic # 60% of diastolic duration
+  #abline(v=end3, lty=2, col=2)
+  
+  if(sum(dp2[dic:end3] < 0) < 1) {
+    dia <- 9999
+  } else {
+    dia <- which.min(dp2[dic:end3]) + dic - 1
+  }
+  
+  # plot(pw, type="l", lwd=2)
+  # par(new=T)
+  # plot(dp2, type='o',col="grey")
+  # abline(v = c(dic, dia), h = 0)
+  
+  
+  # PLOTS -------------------------------------------------------------------
+  
+  if(isTRUE(plot)) {
+    plot(pw, type = "l", lwd=2, ylab="BP (mmHg)")
+    abline(v=c(dic, dia), col="grey", lty=3, lwd=2)
+    mtext(c("Ed", "P3"), side = 3, at = c(dic,dia))
+  }
+  
+  return(data.frame(dicrotic_notch = dic, 
+                    dicrotic_peak = dia))
+  
+}
+
+  low.pass <- function(y, fq, do.plot = FALSE) {
+  
+  # Second order low pass filter
+  # Removes high frequency components above fq
+  # y = a numeric vector
+  # fq = a numeric vector giving frequency or period of the filter.
+  
+  if (any(is.na(y))) stop("y contains NA")
+  
+  # n = a numeric value giving the order of the filter. 
+  # Larger numbers create steeper fall off.
+  n = 4
+  
+  if (any(fq>1)) {
+    f <- 1/fq
+    p <- fq
+  } else {
+    p <- 1/fq
+    f <- fq
+  }
+  
+  # sort f in case it's passed in backwards
+  f <- sort(f)
+  
+  filt <- signal::butter(n = n,
+                         W = f * 2,
+                         type = "low",
+                         plane = "z")
+  
+  # remove mean
+  yAvg <- mean(y)
+  y <- y - yAvg
+  
+  # pad the data to twice the max period
+  pad <- max(p) * 2
+  ny <- length(y)
+  
+  # pad the data
+  yPad <- c(y[pad:1], y, y[ny:(ny - pad)])
+  
+  # run the filter
+  yFilt <- signal::filtfilt(filt, yPad)
+  
+  # unpad the filtered data
+  yFilt <- yFilt[(pad + 1):(ny + pad)]
+  
+  # return with mean added back in
+  filt.sig <- yFilt + yAvg
+  
+  if(isTRUE(do.plot)){
+    # plot results
+    plot(filt.sig,
+         type = "l",
+         lwd = 2)
+  }
+  
+  # return filtered signal
+  return(filt.sig)
   }
   
   RootSpline1 <- function (x, y, y0 = 0, verbose = TRUE) {
@@ -117,71 +176,6 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     }
     ## return roots
     xr
-  }
-  
-  low.pass <- function(y, fq, do.plot = FALSE) {
-    
-    # Second order low pass filter
-    # Removes high frequency components below fq
-    # y = a numeric vector, typically a tree-ring series.
-    # fq = a numeric vector giving frequency or period of the filter.
-    # Rp = a numeric value giving the dB for the passband ripple.
-    
-    if (any(is.na(y))) stop("y contains NA")
-    
-    ## n = a numeric value giving the order of the filter. 
-    ## Larger numbers create steeper fall off.
-    n = 4
-    
-    if (any(fq>1)) {
-      f <- 1/fq
-      p <- fq
-    } else {
-      p <- 1/fq
-      f <- fq
-    }
-    
-    # sort f in case it's passed in backwards
-    f <- sort(f)
-    
-    filt <- signal::butter(
-      n = n,
-      W = f * 2,
-      type = "low",
-      plane = "z"
-    )
-    
-    # remove mean
-    yAvg <- mean(y)
-    y <- y - yAvg
-    
-    # pad the data to twice the max period
-    pad <- max(p) * 2
-    ny <- length(y)
-    
-    # pad the data
-    yPad <- c(y[pad:1], y, y[ny:(ny - pad)])
-    
-    # run the filter
-    yFilt <- signal::filtfilt(filt, yPad)
-    
-    # unpad the filtered data
-    yFilt <- yFilt[(pad + 1):(ny + pad)]
-    
-    # return with mean added back in
-    filt.sig <- yFilt + yAvg
-    
-    if(isTRUE(do.plot)){
-      
-      # plot results
-      plot(filt.sig,
-           type = "l",
-           lwd = 2)
-    }
-    
-    # return filtered signal
-    return(filt.sig)
-    
   }
   
   # Low pass waveform
@@ -225,9 +219,12 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   # abline(h=0,v=p1i,col=2,lwd=1.5)
   
   # Find p2 from 3rd derivative
+  # when looking for p2 after sbp, the 3rd derivative method is more robust than
+  # the 4th derivative method.
   p2i <- which.min(d3[maxpi:(notch - 5)]) + maxpi
   
-  # Depending type of pressure waveform p1 or p2 will aprox equal max p
+  
+  # Depending type of pressure waveform p1 or p2 will approx equal max p
   # Find which is closest to max P
   distp1 <- abs(maxpi - p1i)
   distp2 <- abs(maxpi - p2i)
@@ -268,7 +265,6 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
   # Find p1 from 1st derivative (local min as per Kelly et al. 10.1161/01.CIR.80.6.1652)
   # This method was simplified to the 4th derivative method but works fine here
-  
   # p1i1 <- 9999
   # if(p1i < maxpi-3) {
   #   p1i1 <- which.min(d1[dpdt.max:p1i2]) + (dpdt.max - 1)
@@ -343,7 +339,8 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   )
   
   # round values in df
-  df[,1:26] <- round(df[,1:26], 3) # round values in df
+  num_cols <- unlist(lapply(df, is.numeric)) # Identify numeric cols
+  df[num_cols] <-  round(df[num_cols], 3)    # round numeric cols
   
   # print values to console
   for(i in 1:length(df)){
