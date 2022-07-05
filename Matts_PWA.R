@@ -53,7 +53,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
   # FIND DICROTIC DEPRESSION ------------------------------------------------
   
-  # Isolate notch area with 2nd and 3rd derivatives
+  # Isolate notch area with 1st derivative
   nni <- which.min(dp1)
   end <- length(pw)
   
