@@ -53,12 +53,14 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
   # FIND DICROTIC DEPRESSION ------------------------------------------------
   
-  # Isolate notch area with 1st derivative
-  nni <- which.min(dp1)
+  # End index
   end <- length(pw)
   
   # End index without potential perturbation at end diastole  
   end2 <- end * .9
+  
+  # Isolate notch area with 1st derivatives
+  nni <- which.min(dp1)
   
   # Dicrotic notch from local dp2 max
   dic <- which.max(dp2[nni:end2]) + nni - 1
@@ -72,8 +74,9 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   # FIND DICROTIC PEAK ------------------------------------------------------
   
   end3 <- ((end - dic) * .6) + dic # 60% of diastolic duration
-  #abline(v=end3, lty=2, col=2)
   
+  # Dicrotic peak from min of 2nd derivative
+  # works better for subtle peaks
   if(sum(dp2[dic:end3] < 0) < 1) {
     dia <- 9999
   } else {
@@ -83,6 +86,19 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   # plot(pw, type="l", lwd=2)
   # par(new=T)
   # plot(dp2, type='o',col="grey")
+  # abline(v = c(dic, dia), h = 0)
+  
+  
+  # Dicrotic peak from 0 crossing of 1st derivative
+  # works better for very definable peaks
+  if (pw[dia] > pw[dic] & !is.na(pw[dia])) {
+    hold <- RootSpline1(1:(end - nni + 1), dp1[nni:end], verbose = F)
+    dia <- hold[2] + nni - 1
+  }
+  
+  # plot(pw, type="l", lwd=2)
+  # par(new=T)
+  # plot(dp1, type='o',col="grey")
   # abline(v = c(dic, dia), h = 0)
   
   
