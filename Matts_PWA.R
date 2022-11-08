@@ -1,24 +1,78 @@
-pwa <- function(pw, filt = FALSE, plot = FALSE) {
+# LOAD REQUIRED FUNCTIONS
+install.packages("signal")
+
+fsg721 <- function(x, smth = 7) {
   
-  fsg721 <- function(x) {
-  # 1st derivative with SG filter
-  #2nd order polynomial
-  C = c(0.107143, 0.071429, 0.035714)
-  B = integer(7)
-  for (i in 1:3) {
-    B[i] = C[i]
-  }
-  B[4] = 0.0
-  for (i in 5:7) {
-    B[i] = -C[8 - i]
-  }
-  A = c(1, 0)
-  s = length(x)
-  dx = signal::filter(B, A, x)
-  dx = c(dx[7], dx[7], dx[7], dx[7:s], dx[s], dx[s], dx[s])
+  # 2nd order polynomial sg filter
+  # windowing for smoothing = smth (default 7)
+  sg <- signal::sgolay(p = 2, n = smth, m = 1)
+  sig <- signal::filter(sg, x)
+  #plot(sig)
+  return(sig)
+  
 }
 
-  Tintersect <- function(wf, plot = FALSE) {
+low.pass <- function(y, fq, do.plot = FALSE) {
+  
+  # Second order low pass filter
+  # Removes high frequency components above fq
+  # y = a numeric vector
+  # fq = a numeric vector giving frequency or period of the filter.
+  
+  if (any(is.na(y))) stop("y contains NA")
+  
+  # n = a numeric value giving the order of the filter. 
+  # Larger numbers create steeper fall off.
+  n = 4
+  
+  if (any(fq>1)) {
+    f <- 1/fq
+    p <- fq
+  } else {
+    p <- 1/fq
+    f <- fq
+  }
+  
+  # sort f in case it's passed in backwards
+  f <- sort(f)
+  
+  filt <- signal::butter(n = n,
+                         W = f * 2,
+                         type = "low",
+                         plane = "z")
+  
+  # remove mean
+  yAvg <- mean(y)
+  y <- y - yAvg
+  
+  # pad the data to twice the max period
+  pad <- max(p) * 2
+  ny <- length(y)
+  
+  # pad the data
+  yPad <- c(y[pad:1], y, y[ny:(ny - pad)])
+  
+  # run the filter
+  yFilt <- signal::filtfilt(filt, yPad)
+  
+  # unpad the filtered data
+  yFilt <- yFilt[(pad + 1):(ny + pad)]
+  
+  # return with mean added back in
+  filt.sig <- yFilt + yAvg
+  
+  if(isTRUE(do.plot)){
+    # plot results
+    plot(filt.sig,
+         type = "l",
+         lwd = 2)
+  }
+  
+  # return filtered signal
+  return(filt.sig)
+}
+
+Tintersect <- function(wf, plot = FALSE) {
   
   k1 <- wf - min(wf[1:which.max(wf)])
   xvar <- (1:length(k1) - 1)
@@ -43,7 +97,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
 }
 
-  dicrotic <- function(pw, plot = FALSE) {
+dicrotic <- function(pw, plot = FALSE) {
   
   # Get derivatives
   dp1 <- fsg721(pw)
@@ -115,142 +169,139 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
 }
 
-  low.pass <- function(y, fq, do.plot = FALSE) {
+RootSpline1 <- function (x, y, y0 = 0, verbose = TRUE) {
   
-  # Second order low pass filter
-  # Removes high frequency components above fq
-  # y = a numeric vector
-  # fq = a numeric vector giving frequency or period of the filter.
-  
-  if (any(is.na(y))) stop("y contains NA")
-  
-  # n = a numeric value giving the order of the filter. 
-  # Larger numbers create steeper fall off.
-  n = 4
-  
-  if (any(fq>1)) {
-    f <- 1/fq
-    p <- fq
-  } else {
-    p <- 1/fq
-    f <- fq
+  if (is.unsorted(x)) {
+    ind <- order(x)
+    x <- x[ind]; y <- y[ind]
   }
-  
-  # sort f in case it's passed in backwards
-  f <- sort(f)
-  
-  filt <- signal::butter(n = n,
-                         W = f * 2,
-                         type = "low",
-                         plane = "z")
-  
-  # remove mean
-  yAvg <- mean(y)
-  y <- y - yAvg
-  
-  # pad the data to twice the max period
-  pad <- max(p) * 2
-  ny <- length(y)
-  
-  # pad the data
-  yPad <- c(y[pad:1], y, y[ny:(ny - pad)])
-  
-  # run the filter
-  yFilt <- signal::filtfilt(filt, yPad)
-  
-  # unpad the filtered data
-  yFilt <- yFilt[(pad + 1):(ny + pad)]
-  
-  # return with mean added back in
-  filt.sig <- yFilt + yAvg
-  
-  if(isTRUE(do.plot)){
-    # plot results
-    plot(filt.sig,
-         type = "l",
-         lwd = 2)
+  z <- y - y0
+  ## which piecewise linear segment crosses zero?
+  k <- which(z[-1] * z[-length(z)] <= 0)
+  ## analytical root finding
+  xr <- x[k] - z[k] * (x[k + 1] - x[k]) / (z[k + 1] - z[k])
+  ## make a plot?
+  if (verbose) {
+    plot(x, y, "l"); abline(h = y0, lty = 2)
+    points(xr, rep.int(y0, length(xr)))
   }
-  
-  # return filtered signal
-  return(filt.sig)
-  }
-  
-  RootSpline1 <- function (x, y, y0 = 0, verbose = TRUE) {
-    if (is.unsorted(x)) {
-      ind <- order(x)
-      x <- x[ind]; y <- y[ind]
-    }
-    z <- y - y0
-    ## which piecewise linear segment crosses zero?
-    k <- which(z[-1] * z[-length(z)] <= 0)
-    ## analytical root finding
-    xr <- x[k] - z[k] * (x[k + 1] - x[k]) / (z[k + 1] - z[k])
-    ## make a plot?
-    if (verbose) {
-      plot(x, y, "l"); abline(h = y0, lty = 2)
-      points(xr, rep.int(y0, length(xr)))
-    }
-    ## return roots
-    xr
-  }
-  
-  # Low pass waveform
+  ## return roots
+  xr
+}
+
+
+# GET PWA PARAMS
+
+# load waveform
+pw <- read.csv("path/to/file")
+
+ # Low pass waveform
   if (isTRUE(filt)) {
     pw <- low.pass(pw, 10, do.plot = F)
   }
   
   # Create derivatives
   d1 <- fsg721(pw)
-  d2 <- fsg721(fsg721(pw))
-  d3 <- fsg721(fsg721(fsg721(pw)))
-  d4 <- fsg721(fsg721(fsg721(fsg721(pw))))
+  d2 <- fsg721(d1)
+  d3 <- fsg721(d2)
+  d4 <- fsg721(d3)
   
   # Some additional calcs
   end <- length(pw)
-  foot <- Tintersect(pw) - 1
+  foot <- Tintersect(pw)
   if(foot < 1) {foot <- 1}
   maxpi <- which.max(pw)
   notchdat <- dicrotic(pw)
   notch <- notchdat$dicrotic_notch
   notchpeak <- notchdat$dicrotic_peak
+  time <- (0:(length(pw)-1)) / 200
+  dpdt.max <- which.max(d1) # Find dp/dt max
   
   # plot(pw,type="o")
   # abline(v=c(foot, notch, notchpeak))
   
-  # Create time
-  time <- (0:(length(pw)-1)) / 200
-  X <- 1:length(pw)
   
-  # get zero crossing of 4th derivative
-  zero_cross <- RootSpline1(X[round(foot):end], d4[round(foot):end], 
-                            verbose = F)
+  # Find p1 up inflection ---------------------------------------------------------
   
-  # index of p1
-  p1i <- zero_cross[2]
+  # TODO find a better marker than "dpdt.max+5"
   
-  # plot
-  # plot(pw[foot:end], type='l', lwd=2, col='grey',yaxt='n',ylab="")
+  # Find inflection after p1 shoulder (local max of 2nd derivative per SphygmoCor)
+  loc_hold <- which.min(d2[dpdt.max:maxpi]) + (dpdt.max - 1)
+  p1i2 <- which.max(d2[loc_hold:maxpi]) + (loc_hold - 1)
+  #p1i2 <- which.max(d2[which.min(d2):maxpi]) + (which.min(d2) - 1)
+  
+  # plot(pw,type="o")
+  # abline(v=p1i2, col=3)
   # par(new=T)
-  # plot(d4,type="l",xaxt='n',lwd=2,ylab="4th derivative")
-  # abline(h=0,v=p1i,col=2,lwd=1.5)
+  # plot(d2,type="o",col="grey"); abline(h=0, v=loc_hold)
+  
+
+  # Find p1 shoulder ---------------------------------------------------------
+  
+  # Find p1 from 0 crossing of 4th derivative, most common in the literature
+  
+  inc <- pw[(foot+5):p1i2]
+  
+  # plot(inc)
+  # par(new=T)
+  # plot(d4[(foot+5):p1i2],
+  #      type='l',
+  #      col=2)
+  # abline(h=0,col=2)
+  # par(new=T)
+  # plot(d3[(foot+5):p1i2],
+  #      type='o',
+  #      col=3)
+  
+  Xindex <- 1:length(pw)
+  
+  zero_cross <- RootSpline1(Xindex[(foot+5):p1i2], 
+                            d4[(foot+5):p1i2], 
+                            verbose = F) 
+  
+  p1i_4d <- zero_cross[d4[zero_cross] > 0]
+  p1i_3d <- which.max(d3[(foot+5):p1i2]) + (foot+5) - 1
+  
+  # plot(pw)
+  # abline(v=c(p1i_4d,p1i_3d), col=2:3)
+  
+  p1i <- p1i_4d[which.min(abs(p1i_4d - p1i_3d))]
+  
+  
+  # -------------------------------------------------------------------------
+  
   
   # Find p2 from 3rd derivative
   # when looking for p2 after sbp, the 3rd derivative method is more robust than
   # the 4th derivative method.
-  p2i <- which.min(d3[maxpi:(notch - 5)]) + maxpi
+  p2i <- which.min(d3[maxpi:(notch - 5)]) + maxpi - 1
   
-  
+  # plot(pw)
+  # par(new=T)
+  # plot(d3,type="l",xaxt='n',lwd=2,ylab="4th derivative")
+  # abline(h=0,v=p2i,col=2,lwd=1.5)
+
   # Depending type of pressure waveform p1 or p2 will approx equal max p
   # Find which is closest to max P
   distp1 <- abs(maxpi - p1i)
   distp2 <- abs(maxpi - p2i)
   
-  # Which is closer to max P, p1 | p2
-  if(distp1 > distp2) {
-    p2i <- which.max(pw)
-  } else if(distp2 > distp1) {
-    p1i <- which.max(pw)
+  # TODO find better solution to the if(length(distp1) < 1) problem below
+  
+  # major hackyness, eww
+  if(length(distp1) < 1) {
+    distp1 <- distp2 - 1
   }
+  
+  # Which is closer to max P, p1 | p2
+  if(distp1 > distp2) {        # if p2 is closer then...
+    p2i <- maxpi
+  } else if(distp2 > distp1) { # if p1 is closer then...
+    p1i <- maxpi
+  }
+  
+  # plot(pw)
+  # abline(v=c(p1i,p2i),col=2:3,lwd=1.5)
   
   # Calculate augmentation index
   ap <- (pw[p2i] - pw[p1i])
@@ -267,29 +318,6 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     type <- "C"
   }
   
-  # plot(pw,type="o")
-  # abline(v=c(p1i,p2i), col=2:3)
-  
-  # Find dp/dt max
-  dpdt.max <- which.max(d1)
-  
-  # Find inflection after p1 (local max of 2nd derivative per SphygmoCor)
-  p1i2 <- 9999
-  if(p1i < maxpi-3) {
-    p1i2 <- which.max(d2[p1i:maxpi]) + (p1i - 1)
-  }
-  
-  # Find p1 from 1st derivative (local min as per Kelly et al. 10.1161/01.CIR.80.6.1652)
-  # This method was simplified to the 4th derivative method but works fine here
-  # p1i1 <- 9999
-  # if(p1i < maxpi-3) {
-  #   p1i1 <- which.min(d1[dpdt.max:p1i2]) + (dpdt.max - 1)
-  # }
-  
-  # plot(pw,type="o"); abline(v=c(p1i, p1i1, p1i2), col=2)
-  # par(new=T)
-  # plot(d1,type="o"); abline(h=0)
-  
   # Plot results
   if (isTRUE(plot)) {
     
@@ -303,13 +331,11 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     
     points(x = c(time[foot], 
                  time[p1i], 
-                 time[p1i2], 
                  time[p2i], 
                  time[notch], 
                  time[notchpeak]),
            y = c(pw[foot], 
                  pw[p1i], 
-                 pw[p1i2], 
                  pw[p2i], 
                  pw[notch], 
                  pw[notchpeak]),
@@ -317,6 +343,17 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
            col = 2,
            lwd = 3,
            cex = 1.7)
+    
+    if(aix > 0) {
+      
+      points(x = time[p1i2],
+             y = pw[p1i2],
+             pch = "|",
+             col = 5,
+             lwd = 3,
+             cex = 1.7)
+      
+    }
     
   }
   
@@ -329,7 +366,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     P2_index = p2i,
     Ed_index = notch,
     P3_index = notchpeak,
-    #P1x_index = p1i1,
+    P1_inflect_index = p1i2,
     DpDt_index = dpdt.max,
     # Values in unit seconds
     MaxP_sec = time[maxpi],
@@ -338,7 +375,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     P2_sec = time[p2i],
     Ed_sec = time[notch],
     P3_sec = time[notchpeak],
-    #P1x_sec = time[p1i1],
+    P1_inflect_sec = time[p1i2],
     DpDt_sec = time[dpdt.max],
     # Values in unit mmHg
     MaxP_mmhg = pw[maxpi],
@@ -347,7 +384,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     P2_mmhg = pw[p2i],
     Ed_mmhg = pw[notch],
     P3_mmhg = pw[notchpeak],
-    #P1x_mmhg = pw[p1i1],
+    P1_inflect_mmhg = pw[p1i2],
     DpDt_mmhg = pw[dpdt.max],
     AP_mmHg = ap,
     AIX = aix,
@@ -362,7 +399,4 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   for(i in 1:length(df)){
     print(paste0(names(df[i]),": ", df[1,i]), quote = F)
   }
-  
-  return(df)
-  
-}
+
