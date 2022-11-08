@@ -190,12 +190,9 @@ RootSpline1 <- function (x, y, y0 = 0, verbose = TRUE) {
 }
 
 
-# GET PWA PARAMS
-
-# load waveform
-pw <- read.csv("path/to/file")
-
- # Low pass waveform
+pwa <- function(pw, filt = FALSE, plot = FALSE) {
+  
+  # Low pass waveform
   if (isTRUE(filt)) {
     pw <- low.pass(pw, 10, do.plot = F)
   }
@@ -238,7 +235,7 @@ pw <- read.csv("path/to/file")
 
   # Find p1 shoulder ---------------------------------------------------------
   
-  # Find p1 from 0 crossing of 4th derivative, most common in the literature
+  # Find p1 from 0 crossing of 4th derivative, most common method
   
   inc <- pw[(foot+5):p1i2]
   
@@ -273,7 +270,7 @@ pw <- read.csv("path/to/file")
   
   # Find p2 from 3rd derivative
   # when looking for p2 after sbp, the 3rd derivative method is more robust than
-  # the 4th derivative method.
+  # the 4th derivative method, per what ive experienced, though the derivative filter is important here.
   p2i <- which.min(d3[maxpi:(notch - 5)]) + maxpi - 1
   
   # plot(pw)
@@ -281,7 +278,7 @@ pw <- read.csv("path/to/file")
   # plot(d3,type="l",xaxt='n',lwd=2,ylab="4th derivative")
   # abline(h=0,v=p2i,col=2,lwd=1.5)
 
-  # Depending type of pressure waveform p1 or p2 will approx equal max p
+  # Depending on type of pressure waveform p1 or p2 will approx equal max p
   # Find which is closest to max P
   distp1 <- abs(maxpi - p1i)
   distp2 <- abs(maxpi - p2i)
@@ -399,4 +396,7 @@ pw <- read.csv("path/to/file")
   for(i in 1:length(df)){
     print(paste0(names(df[i]),": ", df[1,i]), quote = F)
   }
-
+  
+  return(df)
+  
+}
