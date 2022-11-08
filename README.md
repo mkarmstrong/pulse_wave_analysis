@@ -7,8 +7,8 @@ Example plots:
 
 Murgo type A waveform:
 
-![Murgo type A](Type_A.png)
+![Murgo type A](TypeA.png)
 
 Murgo type C waveform:
 
-![Murgo type C](Type_C.png)
+![Murgo type C](TypeC.png)
