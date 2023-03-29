@@ -194,7 +194,7 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
   # Low pass waveform
   if (isTRUE(filt)) {
-    pw <- low.pass(pw, 10, do.plot = F)
+    pw <- low.pass(pw, 0.10, do.plot = F)
   }
   
   # Create derivatives
@@ -203,106 +203,66 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   d3 <- fsg721(d2)
   d4 <- fsg721(d3)
   
+  time <- (0:(length(pw)-1)) / 200
+  
   # Some additional calcs
-  end <- length(pw)
   foot <- Tintersect(pw)
   if(foot < 1) {foot <- 1}
+  dpdt.max <- which.max(d1) # Find dp/dt max
   maxpi <- which.max(pw)
   notchdat <- dicrotic(pw)
   notch <- notchdat$dicrotic_notch
   notchpeak <- notchdat$dicrotic_peak
-  time <- (0:(length(pw)-1)) / 200
-  dpdt.max <- which.max(d1) # Find dp/dt max
-  
-  # plot(pw,type="o")
-  # abline(v=c(foot, notch, notchpeak))
+  end <- length(pw)
   
   
-  # Find p1 up inflection ---------------------------------------------------------
+  # Find P1 concave ---------------------------------------------------------
   
-  # TODO find a better marker than "dpdt.max+5"
-  
-  # Find inflection after p1 shoulder (local max of 2nd derivative per SphygmoCor)
+  # Find inflection after convex p1 shoulder (local max of 2nd derivative per SphygmoCor)
   loc_hold <- which.min(d2[dpdt.max:maxpi]) + (dpdt.max - 1)
-  p1i2 <- which.max(d2[loc_hold:maxpi]) + (loc_hold - 1)
-  #p1i2 <- which.max(d2[which.min(d2):maxpi]) + (which.min(d2) - 1)
+  p1i_alt <- which.max(d2[loc_hold:maxpi]) + (loc_hold - 1)
+  #p1i_alt <- which.max(d2[(dpdt.max+2):maxpi]) + ((dpdt.max+2) - 1)
   
-  # plot(pw,type="o")
-  # abline(v=p1i2, col=3)
+  # plot(pw,type="b")
+  # abline(v=p1i_alt, col=3, lwd=2)
   # par(new=T)
-  # plot(d2,type="o",col="grey"); abline(h=0, v=loc_hold)
-  
-
-  # Find p1 shoulder ---------------------------------------------------------
-  
-  # Find p1 from 0 crossing of 4th derivative, most common method
-  
-  inc <- pw[(foot+5):p1i2]
-  
-  # plot(inc)
-  # par(new=T)
-  # plot(d4[(foot+5):p1i2],
-  #      type='l',
-  #      col=2)
-  # abline(h=0,col=2)
-  # par(new=T)
-  # plot(d3[(foot+5):p1i2],
-  #      type='o',
-  #      col=3)
-  
-  Xindex <- 1:length(pw)
-  
-  zero_cross <- RootSpline1(Xindex[(foot+5):p1i2], 
-                            d4[(foot+5):p1i2], 
-                            verbose = F) 
-  
-  p1i_4d <- zero_cross[d4[zero_cross] > 0]
-  p1i_3d <- which.max(d3[(foot+5):p1i2]) + (foot+5) - 1
-  
-  # plot(pw)
-  # abline(v=c(p1i_4d,p1i_3d), col=2:3)
-  
-  p1i <- p1i_4d[which.min(abs(p1i_4d - p1i_3d))]
+  # plot(d2,type="o",col="grey")
+  # abline(h=0, v=c(loc_hold, dpdt.max+2, maxpi), lty=c(1,3,1, 1))
   
   
-  # -------------------------------------------------------------------------
-  
+  # Find P2 -----------------------------------------------------------------
   
   # Find p2 from 3rd derivative
   # when looking for p2 after sbp, the 3rd derivative method is more robust than
-  # the 4th derivative method, per what ive experienced, though the derivative filter is important here.
+  # the 4th derivative method.
   p2i <- which.min(d3[maxpi:(notch - 5)]) + maxpi - 1
   
   # plot(pw)
   # par(new=T)
-  # plot(d3,type="l",xaxt='n',lwd=2,ylab="4th derivative")
-  # abline(h=0,v=p2i,col=2,lwd=1.5)
-
-  # Depending on type of pressure waveform p1 or p2 will approx equal max p
-  # Find which is closest to max P
-  distp1 <- abs(maxpi - p1i)
-  distp2 <- abs(maxpi - p2i)
+  # plot(d3, type="o", col="grey")
+  # abline(h=0, v=c(maxpi, notch-5, p2i), col=c(1,1,1,2))
   
-  # TODO find better solution to the if(length(distp1) < 1) problem below
   
-  # major hackyness, eww
-  if(length(distp1) < 1) {
-    distp1 <- distp2 - 1
-  }
+  # Determine waveform type -------------------------------------------------
   
-  # Which is closer to max P, p1 | p2
-  if(distp1 > distp2) {        # if p2 is closer then...
+  # In this version of pwa(), waveform type is determined from the value of d2 
+  # at p1i_alt. If d2 is >= 0, then the early systolic p1 inflection was present.
+  # A buffer zone was added following some miss classifications. 
+  buff <- 0.15 * (abs(max(d2)) - abs(min(d2))) # 10% of max of d2
+  
+  if(d2[p1i_alt]+buff >= 0) {
     p2i <- maxpi
-  } else if(distp2 > distp1) { # if p1 is closer then...
+  } else {
+    p1i_alt <- maxpi
     p1i <- maxpi
   }
   
   # plot(pw)
-  # abline(v=c(p1i,p2i),col=2:3,lwd=1.5)
+  # abline(v=c(p1i_alt, p2i), col=2:3, lwd=1.5)
   
   # Calculate augmentation index
-  ap <- (pw[p2i] - pw[p1i])
-  pp <- (pw[maxpi] - pw[foot])
+  ap  <- (pw[p2i] - pw[p1i_alt])
+  pp  <- (pw[maxpi] - pw[foot])
   aix <- (ap / pp) * 100
   
   # Determine Murgo waveform type
@@ -314,6 +274,89 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   } else if (aix < 0) {
     type <- "C"
   }
+  
+  # Find convex P1 ----------------------------------------------------------
+  
+  # Find p1 from 0 crossing of 4th derivative, most common in the literature
+  # or using the first derivative
+  
+  if(type == "A" | type == "B") {
+    
+    p1_seg <- pw[(foot+5):p1i_alt]
+    xidx   <- 1:end
+    
+    # use d1 for very definable p1 & d4 for subtle p1
+    if(max(p1_seg) > pw[p1i_alt]) {
+      
+      zero_cross <- RootSpline1(xidx[(foot+5):p1i_alt], 
+                                d1[(foot+5):p1i_alt], 
+                                verbose = F) 
+      # crossing from above to below
+      p1i_4d <- zero_cross[d1[zero_cross] > 0]
+      
+    } 
+    else {
+      
+      zero_cross <- RootSpline1(xidx[(foot+5):p1i_alt], 
+                                d4[(foot+5):p1i_alt], 
+                                verbose = F)
+      # crossing from above to below
+      p1i_4d <- zero_cross[d4[zero_cross] > 0]
+      
+    }
+    
+    
+    # # as safety checks, find p1 using local max of 3rd d
+    # p1i_3d <- which.max(d3[(foot + 5):p1i_alt]) + (foot + 5) - 1
+    # 
+    # # error trap if p1 is not found
+    # if(length(p1i_4d) < 1) {
+    #   # if p1 not found use p1 from 3rd D
+    #   p1i <- p1i_3d
+    # } else {
+    #   # if multiple zero crossing in 4th (or 1st) d, find crossing closest to p1 from 3rd d 
+    #   p1i <- p1i_4d[which.min(abs(p1i_4d - p1i_3d))]
+    # }
+    
+    
+    # error trap if p1 is not found
+    if(length(p1i_4d) < 1) {
+      # if p1 not found use p1 from 3rd D
+      p1i <- which.max(d3[(foot + 5):p1i_alt]) + (foot + 5) - 1
+    } else {
+      # if found, take zero crossing closest to p1_alt
+      p1i <- p1i_4d[which.min(abs(p1i_4d - p1i_alt))]
+    }
+    
+  }
+  
+  
+  # plot(p1_seg, pch=19,
+  #      xlim=c(1,80), col=5)
+  # 
+  # par(new=T)
+  # plot(d1[(foot+5):p1i_alt],
+  #      xlim=c(1,80),
+  #      type='l',
+  #      col=1)
+  # abline(h=0, col=1)
+  # 
+  # par(new=T)
+  # plot(d3[(foot+5):p1i_alt],
+  #      xlim=c(1,80),
+  #      type='l',
+  #      col=3)
+  # abline(h=0, v=p1i_3d-foot-5, col=3)
+  # 
+  # par(new=T)
+  # plot(d4[(foot+5):p1i_alt],
+  #      xlim=c(1,80),
+  #      type='l',
+  #      col=4)
+  # abline(h=0,col=4)
+  
+  
+  # Plot --------------------------------------------------------------------
   
   # Plot results
   if (isTRUE(plot)) {
@@ -343,8 +386,8 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
     
     if(aix > 0) {
       
-      points(x = time[p1i2],
-             y = pw[p1i2],
+      points(x = time[p1i_alt],
+             y = pw[p1i_alt],
              pch = "|",
              col = 5,
              lwd = 3,
@@ -357,35 +400,35 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   
   df <- data.frame(
     # Index of values
-    MaxP_index = maxpi,
-    Foot_index = foot,
-    P1_index = p1i,
-    P2_index = p2i,
-    Ed_index = notch,
-    P3_index = notchpeak,
-    P1_inflect_index = p1i2,
-    DpDt_index = dpdt.max,
+    sp_idx = maxpi,
+    dp_idx = foot,
+    p1_idx = p1i,
+    p2_idx = p2i,
+    es_idx = notch,
+    p3_idx = notchpeak,
+    p1_alt_idx = p1i_alt,
+    dpdt_idx = dpdt.max,
     # Values in unit seconds
-    MaxP_sec = time[maxpi],
-    Foot_sec = time[foot],
-    P1_sec = time[p1i],
-    P2_sec = time[p2i],
-    Ed_sec = time[notch],
-    P3_sec = time[notchpeak],
-    P1_inflect_sec = time[p1i2],
-    DpDt_sec = time[dpdt.max],
+    sp_sec = time[maxpi],
+    dp_sec = time[foot],
+    p1_sec = time[p1i],
+    p2_sec = time[p2i],
+    es_sec = time[notch],
+    p3_sec = time[notchpeak],
+    p1_alt_sec = time[p1i_alt],
+    dpdt_sec = time[dpdt.max],
     # Values in unit mmHg
-    MaxP_mmhg = pw[maxpi],
-    Foot_mmhg = pw[foot],
-    P1_mmhg = pw[p1i],
-    P2_mmhg = pw[p2i],
-    Ed_mmhg = pw[notch],
-    P3_mmhg = pw[notchpeak],
-    P1_inflect_mmhg = pw[p1i2],
-    DpDt_mmhg = pw[dpdt.max],
-    AP_mmHg = ap,
-    AIX = aix,
-    Type = type
+    sp_mmhg = pw[maxpi],
+    dp_mmhg = pw[foot],
+    p1_mmhg = pw[p1i],
+    p2_mmhg = pw[p2i],
+    es_mmhg = pw[notch],
+    p3_mmhg = pw[notchpeak],
+    p1_alt_mmhg = pw[p1i_alt],
+    dpdt_mmhg = pw[dpdt.max],
+    ap_mmHg = ap,
+    aix = aix,
+    type
   )
   
   # round values in df
@@ -393,9 +436,9 @@ pwa <- function(pw, filt = FALSE, plot = FALSE) {
   df[num_cols] <-  round(df[num_cols], 3)    # round numeric cols
   
   # print values to console
-  for(i in 1:length(df)){
-    print(paste0(names(df[i]),": ", df[1,i]), quote = F)
-  }
+  # for(i in 1:length(df)){
+  #   print(paste0(names(df[i]),": ", df[1,i]), quote = F)
+  # }
   
   return(df)
   
